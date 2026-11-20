@@ -167,8 +167,27 @@ feedback addressed.
 **To the PI / study team**: the "Dependencies on others" rows above, plus whether participants
 use their own phones, and which platforms (iOS, Android, or both) the study must support.
 
+## Jira
+
+Every task is a story under the **Healthcare Cost App** epic
+([MSKIF-3](https://uwo-mskif.atlassian.net/browse/MSKIF-3)), titled `HCA <task #>: …` with its
+estimate in the title. Labels: `healthcare-cost-app` on all of them, `hca-phase-0` to
+`hca-phase-5` by phase, `hca-blocked-empower` / `hca-blocked-decision` where they wait on others,
+and `hca-optional` for 3.7 and 3.8. The cost-rules "slot in when decided" item is story 4.4.
+
+| Phase                  | Jira keys                                                                   |
+| ---------------------- | --------------------------------------------------------------------------- |
+| 0                      | MSKIF-102 to MSKIF-105 (tasks 0.1–0.4)                                      |
+| 1                      | MSKIF-106 to MSKIF-117 (tasks 1.1–1.12)                                     |
+| 2                      | MSKIF-118 to MSKIF-121 (tasks 2.1–2.4)                                      |
+| 3                      | MSKIF-122 to MSKIF-129 (tasks 3.1–3.8)                                      |
+| 4                      | MSKIF-130 to MSKIF-133 (tasks 4.1–4.3, and 4.4 cost rules)                  |
+| 5                      | MSKIF-134 to MSKIF-139 (tasks 5.1–5.6)                                      |
+| Dependencies on others | MSKIF-140 to MSKIF-146 (tasks titled `HCA needed: …`, label `hca-external`) |
+
+Useful filter: `parent = MSKIF-3 AND labels = healthcare-cost-app ORDER BY key`.
+
 ## Keeping this plan up to date
 
-Mark tasks done (for example with ✅ in the # column) in the PR that finishes them, and re-estimate the remaining
-work at each milestone. If you prefer, the tasks can also be turned into GitHub issues grouped
-under one milestone per phase.
+Jira is where progress is tracked. Re-estimate the remaining work at each milestone, and update
+this file when tasks are added, split or dropped, so the two stay in step.
