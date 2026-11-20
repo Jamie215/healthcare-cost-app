@@ -1,0 +1,6 @@
+# The original design prototype is kept byte-for-byte as a reference.
+prototype/
+dist/
+.expo/
+node_modules/
+package-lock.json
