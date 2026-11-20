@@ -81,6 +81,9 @@ Carried over into the app so far:
 
 ## Still to build
 
+The phased plan, with hour estimates and what each phase is waiting on, is in
+[docs/ROADMAP.md](docs/ROADMAP.md).
+
 From the prototype:
 
 - Medication and refill entry (with label photo preview)
