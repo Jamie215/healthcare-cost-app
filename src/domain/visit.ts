@@ -29,6 +29,19 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a date as YYYY-MM-DD')
   .refine(isRealDate, 'Enter a valid date');
 
+/**
+ * Today's date as YYYY-MM-DD in the phone's own time zone. Not `toISOString()`, which uses
+ * UTC: in Toronto, UTC is already tomorrow after 7 pm, so a UTC "today" would let
+ * tomorrow's date through every evening.
+ */
+export function localToday(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// YYYY-MM-DD strings sort in date order, so dates can be compared as plain text.
+const visitDate = isoDate.refine((s) => s <= localToday(), "The visit date can't be in the future");
+
 const yesNo = z.enum(['yes', 'no'], { error: 'Choose Yes or No' });
 
 /**
@@ -83,9 +96,11 @@ export const visitFormSchema = z
   })
   .superRefine((v, ctx) => {
     /** Reports only the first problem for a field, so each question shows one message. */
+    /** Returns whether the value passed, so later checks can build on it. */
     const check = (schema: z.ZodType, value: unknown, path: (string | number)[]) => {
       const r = schema.safeParse(value);
       if (!r.success) ctx.addIssue({ code: 'custom', path, message: r.error.issues[0]!.message });
+      return r.success;
     };
     const oneOf = (options: readonly string[], message: string) =>
       z.string({ error: message }).refine((s) => options.includes(s), message);
@@ -93,7 +108,7 @@ export const visitFormSchema = z
     check(oneOf(VISIT_CATEGORIES[v.category].types, 'Select the type of visit'), v.visitType, [
       'visitType',
     ]);
-    check(isoDate, v.date ?? '', ['date']);
+    const dateOk = check(visitDate, v.date ?? '', ['date']);
     if (v.category === 'hospital') {
       check(z.string().trim().min(1, 'Enter the name of the hospital'), v.hospitalName ?? '', [
         'hospitalName',
@@ -117,7 +132,16 @@ export const visitFormSchema = z
         check(oneOf(TESTS_AND_PROCEDURES, 'Select the test or procedure'), v.referredFor, [
           'referredFor',
         ]);
-        check(isoDate, v.appointmentDate ?? '', ['appointmentDate']);
+        // The appointment may be past or future (visits are often recorded later), but not
+        // before the visit that led to the referral.
+        const appointmentOk = check(isoDate, v.appointmentDate ?? '', ['appointmentDate']);
+        if (dateOk && appointmentOk && v.appointmentDate! < v.date!) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['appointmentDate'],
+            message: "The appointment can't be before the visit",
+          });
+        }
       }
     }
     check(yesNo, v.hadExpenses, ['hadExpenses']);
