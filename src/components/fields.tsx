@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     // The wrapper shows focus; drop the browser's default outline on web.
     outlineWidth: 0,
+    outlineStyle: 'none',
   },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
   chip: {
