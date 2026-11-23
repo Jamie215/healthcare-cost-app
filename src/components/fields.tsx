@@ -1,9 +1,22 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputProps,
+  type TextStyle,
+} from 'react-native';
 
 import { colors, radius, space } from '@/theme/tokens';
 
 import { Text } from './text';
+
+// The wrapper shows focus, so drop the browser's own focus outline on web. CSS needs
+// outline-style: none here (outlineWidth: 0 alone leaves it), but React Native's types only
+// list the native values (solid, dotted, dashed), hence the cast.
+const webNoOutline = Platform.select({ web: { outlineStyle: 'none' } as unknown as TextStyle });
 
 export function Question({
   label,
@@ -64,7 +77,7 @@ export function TextField({
         <TextInput
           accessibilityLabel={label}
           placeholderTextColor={colors.muted}
-          style={styles.textInput}
+          style={[styles.textInput, webNoOutline]}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -152,9 +165,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-400',
     fontSize: 14,
     color: colors.text,
-    // The wrapper shows focus; drop the browser's default outline on web.
-    outlineWidth: 0,
-    outlineStyle: 'none',
   },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
   chip: {
