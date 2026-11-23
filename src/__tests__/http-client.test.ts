@@ -163,3 +163,20 @@ describe('slow or missing connection', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 });
+
+describe('request headers', () => {
+  const sentHeaders = (call: number) =>
+    new Headers((fetchMock.mock.calls[call]![1] as RequestInit).headers);
+
+  it('sends JSON, and the access token once signed in', async () => {
+    const c = client();
+    reply({ participant: { id: 'p-1', displayName: 'Demo' }, accessToken: 'test-token' });
+    await c.signIn({ username: 'demo', password: 'demo' });
+    expect(sentHeaders(0).get('Content-Type')).toBe('application/json');
+    expect(sentHeaders(0).has('Authorization')).toBe(false);
+
+    reply([]);
+    await c.listVisits();
+    expect(sentHeaders(1).get('Authorization')).toBe('Bearer test-token');
+  });
+});

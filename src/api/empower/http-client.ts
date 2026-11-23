@@ -60,15 +60,18 @@ export function createHttpEmpowerClient(
   async function send(path: string, init: RequestInit = {}): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Merge through a Headers object: spreading `init.headers` loses them when they are a
+    // Headers object or a list of pairs, which fetch also accepts. Headers the caller sets win.
+    const headers = new Headers(init.headers);
+    if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+    if (session && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${session.accessToken}`);
+    }
     try {
       const res = await fetch(`${root}${path}`, {
         ...init,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-          ...init.headers,
-        },
+        headers,
       });
       if (!res.ok) throw new EmpowerError(`EmPOWER request failed: ${res.status}`, res.status);
       if (res.status === 204) return undefined;
