@@ -7,7 +7,7 @@ import { VISIT_CATEGORIES, VISIT_CATEGORY_KEYS } from '@/data/visit-types';
 
 export default function VisitCategories() {
   return (
-    <Screen>
+    <Screen back>
       <Text variant="title">What kind of visit was it?</Text>
       {VISIT_CATEGORY_KEYS.map((key) => (
         <Button

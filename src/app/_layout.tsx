@@ -28,8 +28,9 @@ export default function RootLayout() {
       <VisitsProvider>
         <Stack
           screenOptions={{
-            headerTintColor: colors.blue500,
-            headerTitleStyle: { fontFamily: 'Inter-600' },
+            // Screens draw their own title and back control (as in the prototype), so the
+            // native header would only duplicate them and take vertical space.
+            headerShown: false,
             contentStyle: { backgroundColor: colors.page },
           }}
         >
