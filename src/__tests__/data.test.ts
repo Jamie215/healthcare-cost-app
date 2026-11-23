@@ -1,7 +1,7 @@
 import { ONTARIO_HOSPITALS } from '@/data/hospitals';
 import { MEDICATION_SUGGESTIONS } from '@/data/medications';
 import { searchHospitals, searchMedications } from '@/data/search';
-import { summarizeCosts } from '@/domain/costs';
+import { summarizeCosts, visitTotal } from '@/domain/costs';
 import type { Visit } from '@/domain/visit';
 
 describe('ported prototype data', () => {
@@ -31,21 +31,31 @@ describe('searchMedications', () => {
 });
 
 describe('summarizeCosts', () => {
+  const visit = (amounts: number[], hours?: number): Visit => ({
+    id: String(Math.random()),
+    category: 'primary',
+    visitType: 'Family Doctor',
+    date: '2026-11-01',
+    costCoverage: 'OHIP',
+    timeOffWorkHours: hours,
+    expenses: amounts.map((amount) => ({ type: 'Parking', amount })),
+    createdAt: '',
+  });
+
   it('adds expenses and hours off work', () => {
-    const visit = (amounts: number[], hours?: number): Visit => ({
-      id: String(Math.random()),
-      category: 'primary',
-      visitType: 'Family Doctor',
-      date: '2026-11-01',
-      costCoverage: 'OHIP',
-      timeOffWorkHours: hours,
-      expenses: amounts.map((amount) => ({ type: 'Parking', amount })),
-      createdAt: '',
-    });
     expect(summarizeCosts([visit([12.5, 4]), visit([], 3)])).toEqual({
       totalExpenses: 16.5,
       visitCount: 2,
       hoursOffWork: 3,
     });
+  });
+
+  it('adds decimals exactly, without floating-point noise', () => {
+    // In plain JavaScript, 0.1 + 0.2 is 0.30000000000000004.
+    expect(summarizeCosts([visit([0.1], 0.1), visit([0.2], 0.2)])).toMatchObject({
+      totalExpenses: 0.3,
+      hoursOffWork: 0.3,
+    });
+    expect(visitTotal(visit([0.1, 0.2]))).toBe(0.3);
   });
 });

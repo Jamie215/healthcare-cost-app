@@ -5,7 +5,7 @@ import { useVisits } from '@/api/visits';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
-import { formatCurrency, summarizeCosts } from '@/domain/costs';
+import { formatCurrency, summarizeCosts, visitTotal } from '@/domain/costs';
 import { colors, fontSize, radius, space } from '@/theme/tokens';
 
 export default function Home() {
@@ -36,7 +36,7 @@ export default function Home() {
           <View key={v.id} style={styles.entry}>
             <Text variant="label">{v.hospitalName ?? v.visitType}</Text>
             <Text variant="muted">
-              {v.date} · {formatCurrency(v.expenses.reduce((s, e) => s + e.amount, 0))}
+              {v.date} · {formatCurrency(visitTotal(v))}
             </Text>
           </View>
         ))}
