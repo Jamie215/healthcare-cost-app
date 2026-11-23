@@ -45,6 +45,12 @@ export function parseHundredths(text: string): number | null {
   return Number.isSafeInteger(value) ? value : null;
 }
 
+/**
+ * Above this amount, the cost field asks the participant to double-check. It never blocks
+ * saving. PLACEHOLDER: $10,000 until the study team sets the threshold.
+ */
+export const LARGE_AMOUNT_CENTS = 10_000_00;
+
 /** Formats hundredths for a text field with exactly two decimals: 1250 → "12.50". */
 export function formatHundredths(value: number): string {
   return `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;

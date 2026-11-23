@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useVisits } from '@/api/visits';
 import { Button } from './button';
+import { DecimalField, MoneyField } from './decimal-field';
 import { Choice, Question, TextField, YesNo } from './fields';
 import { HospitalField } from './hospital-field';
 import { Screen } from './screen';
@@ -152,13 +153,12 @@ export function VisitForm({
               control={control}
               name="timeOffWorkHours"
               render={({ field }) => (
-                <TextField
+                <DecimalField
                   label="Hours off paid employment"
                   placeholder="0"
-                  keyboardType="decimal-pad"
                   suffix="hour(s)"
-                  value={field.value}
-                  onChangeText={field.onChange}
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
                   error={err('timeOffWorkHours')}
                 />
               )}
@@ -247,13 +247,10 @@ export function VisitForm({
                 control={control}
                 name={`expenses.${i}.amount`}
                 render={({ field }) => (
-                  <TextField
+                  <MoneyField
                     label={`Expense ${i + 1} cost`}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    suffix="CAD"
-                    value={field.value}
-                    onChangeText={field.onChange}
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
                     error={err(`expenses.${i}.amount`)}
                   />
                 )}

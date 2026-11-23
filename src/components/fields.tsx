@@ -8,10 +8,13 @@ import { Text } from './text';
 export function Question({
   label,
   error,
+  hint,
   children,
 }: {
   label: string;
   error?: string;
+  /** A gentle note that does not block saving, such as "please check this amount". */
+  hint?: string;
   children: ReactNode;
 }) {
   return (
@@ -22,25 +25,42 @@ export function Question({
         <Text variant="error" accessibilityRole="alert">
           {error}
         </Text>
+      ) : hint ? (
+        <Text variant="muted" accessibilityLiveRegion="polite">
+          {hint}
+        </Text>
       ) : null}
     </View>
   );
 }
 
+export type TextFieldProps = TextInputProps & {
+  label: string;
+  error?: string;
+  hint?: string;
+  /** Shown before the text, such as "$". */
+  prefix?: string;
+  /** Shown after the text, such as "CAD". */
+  suffix?: string;
+};
+
 export function TextField({
   label,
   error,
+  hint,
+  prefix,
   suffix,
   onFocus,
   onBlur,
   ...input
-}: TextInputProps & { label: string; error?: string; suffix?: string }) {
+}: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   return (
-    <Question label={label} error={error}>
+    <Question label={label} error={error} hint={hint}>
       <View
         style={[styles.input, focused && styles.inputFocused, error ? styles.inputError : null]}
       >
+        {prefix ? <Text variant="muted">{prefix}</Text> : null}
         <TextInput
           accessibilityLabel={label}
           placeholderTextColor={colors.muted}
@@ -121,6 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     backgroundColor: colors.surface,
     paddingHorizontal: space[16],
+    gap: space[4],
   },
   // Active border from the prototype's Input component (#005586).
   inputFocused: { borderColor: colors.blue500 },

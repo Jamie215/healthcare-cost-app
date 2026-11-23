@@ -37,7 +37,8 @@ describe('VisitForm', () => {
     await fireEvent.press(screen.getByText('Yes'));
     await fireEvent.press(screen.getByText('Add expense'));
     await fireEvent.press(screen.getByText('Parking'));
-    await fireEvent.changeText(screen.getByLabelText('Expense 1 cost'), '12.50');
+    // A French-language keypad types a comma; it must still save as $12.50.
+    await fireEvent.changeText(screen.getByLabelText('Expense 1 cost'), '12,5');
     await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
