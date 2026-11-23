@@ -66,6 +66,14 @@ describe('visit form rules', () => {
     expect(errorPaths(zero)).toEqual([]);
   });
 
+  it('rejects dates that are not on the calendar', () => {
+    for (const date of ['2026-02-30', '2026-02-31', '2026-04-31', '2026-13-01', '2026-00-10']) {
+      expect(errorPaths(base({ date }))).toContain('date');
+    }
+    expect(errorPaths(base({ date: '2028-02-29' }))).toEqual([]); // leap year
+    expect(errorPaths(base({ date: '2027-02-29' }))).toContain('date');
+  });
+
   it('drops hidden follow-ups when saving', () => {
     const saved = toNewVisit(
       base({

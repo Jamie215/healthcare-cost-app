@@ -11,10 +11,21 @@ import {
   type VisitCategory,
 } from '@/data/visit-types';
 
+/**
+ * True when YYYY-MM-DD names a real calendar day. `Date.parse` alone is not enough: it
+ * rolls impossible days over (2026-02-30 becomes 2 March), so we build the date and check
+ * the year, month and day come back unchanged.
+ */
+const isRealDate = (s: string) => {
+  const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+};
+
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a date as YYYY-MM-DD')
-  .refine((s) => !Number.isNaN(Date.parse(s)), 'Enter a valid date');
+  .refine(isRealDate, 'Enter a valid date');
 
 const yesNo = z.enum(['yes', 'no'], { error: 'Choose Yes or No' });
 
