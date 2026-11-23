@@ -5,7 +5,7 @@ import { useVisits } from '@/api/visits';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
-import { formatCurrency, summarizeCosts, visitTotal } from '@/domain/costs';
+import { formatCents, summarizeCosts, visitTotalCents } from '@/domain/costs';
 import { colors, fontSize, radius, space } from '@/theme/tokens';
 
 export default function Home() {
@@ -18,7 +18,7 @@ export default function Home() {
 
       <View style={styles.card} accessibilityLabel="Cost summary">
         <Text variant="muted">Related expenses recorded</Text>
-        <Text style={styles.amount}>{formatCurrency(summary.totalExpenses)}</Text>
+        <Text style={styles.amount}>{formatCents(summary.totalExpenseCents)}</Text>
         <Text variant="muted">
           {summary.visitCount} {summary.visitCount === 1 ? 'visit' : 'visits'}
           {summary.hoursOffWork > 0 ? ` · ${summary.hoursOffWork} hours off paid work` : ''}
@@ -36,7 +36,7 @@ export default function Home() {
           <View key={v.id} style={styles.entry}>
             <Text variant="label">{v.hospitalName ?? v.visitType}</Text>
             <Text variant="muted">
-              {v.date} · {formatCurrency(visitTotal(v))}
+              {v.date} · {formatCents(visitTotalCents(v))}
             </Text>
           </View>
         ))}

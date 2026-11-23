@@ -45,7 +45,7 @@ describe('VisitForm', () => {
     expect(saved).toMatchObject({
       category: 'pharmacy',
       costCoverage: 'Out of pocket',
-      expenses: [{ type: 'Parking', amount: 12.5 }],
+      expenses: [{ type: 'Parking', amountCents: 1250 }],
     });
   });
 });

@@ -50,12 +50,10 @@ const hundredths = (emptyMessage: string, formatMessage: string) =>
       return value;
     });
 
-const nonNegativeNumber = (emptyMessage: string, formatMessage: string) =>
-  hundredths(emptyMessage, formatMessage).transform((value) => value / 100);
-
+/** One expense row as typed. `amount` parses to whole cents: "12.50" → 1250. */
 export const expenseRowSchema = z.object({
   type: z.enum(EXPENSE_TYPES, { error: 'Select an expense type' }),
-  amount: nonNegativeNumber('Enter the cost', 'Enter an amount like 12.50'),
+  amount: hundredths('Enter the cost', 'Enter an amount like 12.50'),
 });
 
 const optionalText = z.string().optional();
@@ -107,7 +105,7 @@ export const visitFormSchema = z
       check(yesNo, v.timeOffWork, ['timeOffWork']);
       if (v.timeOffWork === 'yes') {
         check(
-          nonNegativeNumber('Enter the hours', 'Enter hours like 2 or 1.5'),
+          hundredths('Enter the hours', 'Enter hours like 2 or 1.5'),
           v.timeOffWorkHours ?? '',
           ['timeOffWorkHours'],
         );
@@ -136,7 +134,14 @@ export const visitFormSchema = z
 
 export type VisitFormValues = z.input<typeof visitFormSchema>;
 
-export type Expense = z.output<typeof expenseRowSchema>;
+/**
+ * A saved expense. Money is stored as a whole number of cents (12.50 dollars is 1250), so
+ * totals are exact and the unit is clear to anyone reading exported data.
+ */
+export type Expense = {
+  type: (typeof EXPENSE_TYPES)[number];
+  amountCents: number;
+};
 
 /** A saved visit, as stored by the EmPOWER API (or the mock). */
 export type Visit = {
@@ -184,6 +189,12 @@ export function toNewVisit(values: VisitFormValues): NewVisit {
       v.referred === 'yes'
         ? { test: v.referredFor ?? '', appointmentDate: v.appointmentDate ?? '' }
         : undefined,
-    expenses: v.hadExpenses === 'yes' ? v.expenses.map((e) => expenseRowSchema.parse(e)) : [],
+    expenses:
+      v.hadExpenses === 'yes'
+        ? v.expenses.map((e) => {
+            const row = expenseRowSchema.parse(e);
+            return { type: row.type, amountCents: row.amount };
+          })
+        : [],
   };
 }

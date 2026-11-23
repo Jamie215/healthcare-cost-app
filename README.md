@@ -56,6 +56,8 @@ they use the `EmpowerClient` interface in `src/api/empower/types.ts`.
 - Setting `EXPO_PUBLIC_EMPOWER_API_URL` switches to `createHttpEmpowerClient()`. Its endpoint paths
   are **placeholders** until EmPOWER's API documentation is available. The URL may include a
   path, such as `https://example.org/api/v1`; endpoint paths are added after it.
+- Money is saved as a whole number of cents (`amountCents: 1250` is $12.50), so totals are
+  exact. If EmPOWER expects dollars, convert in the HTTP client, not in screens.
 
 Open questions for EmPOWER: how sign-in works (OAuth/OpenID Connect redirect or credentials),
 whether it can send reminders or push notifications, whether it accepts photo uploads and

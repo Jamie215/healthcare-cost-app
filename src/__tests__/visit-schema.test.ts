@@ -99,7 +99,7 @@ describe('visit form rules', () => {
       }),
     );
     expect(saved.timeOffWorkHours).toBe(1.5);
-    expect(saved.expenses).toEqual([{ type: 'Parking', amount: 12.5 }]);
+    expect(saved.expenses).toEqual([{ type: 'Parking', amountCents: 1250 }]);
   });
 
   it('drops hidden follow-ups when saving', () => {
@@ -115,7 +115,7 @@ describe('visit form rules', () => {
     expect(saved.expenses).toEqual([]);
   });
 
-  it('converts expense amounts to numbers', () => {
+  it('saves expense amounts as whole cents', () => {
     const saved = toNewVisit(
       base({
         hadExpenses: 'yes',
@@ -126,8 +126,8 @@ describe('visit form rules', () => {
       }),
     );
     expect(saved.expenses).toEqual([
-      { type: 'Parking', amount: 12.5 },
-      { type: 'Meal', amount: 4 },
+      { type: 'Parking', amountCents: 1250 },
+      { type: 'Meal', amountCents: 400 },
     ]);
   });
 });
