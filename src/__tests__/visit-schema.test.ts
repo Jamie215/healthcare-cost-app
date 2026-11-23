@@ -77,16 +77,29 @@ describe('visit form rules', () => {
   it('accepts amounts with up to two decimal places', () => {
     const withAmount = (amount: string) =>
       errorPaths(base({ hadExpenses: 'yes', expenses: [{ type: 'Parking', amount }] }));
-    for (const amount of ['12', '12.5', '12.50', '12.', '.5', ' 3 ']) {
+    for (const amount of ['12', '12.5', '12.50', '12.', '.5', ' 3 ', '12,50', ',5']) {
       expect(withAmount(amount)).toEqual([]);
     }
-    for (const amount of ['12.505', '12,50', '$12', '-1', '.', 'abc']) {
+    for (const amount of ['12.505', '1,000', '$12', '-1', '.', 'abc', '1.2.3']) {
       expect(withAmount(amount)).toContain('expenses.0.amount');
     }
     expect(errorPaths(base({ timeOffWork: 'yes', timeOffWorkHours: '1.5' }))).toEqual([]);
     expect(errorPaths(base({ timeOffWork: 'yes', timeOffWorkHours: '1.255' }))).toContain(
       'timeOffWorkHours',
     );
+  });
+
+  it('saves comma decimals as numbers', () => {
+    const saved = toNewVisit(
+      base({
+        timeOffWork: 'yes',
+        timeOffWorkHours: '1,5',
+        hadExpenses: 'yes',
+        expenses: [{ type: 'Parking', amount: '12,5' }],
+      }),
+    );
+    expect(saved.timeOffWorkHours).toBe(1.5);
+    expect(saved.expenses).toEqual([{ type: 'Parking', amount: 12.5 }]);
   });
 
   it('drops hidden follow-ups when saving', () => {

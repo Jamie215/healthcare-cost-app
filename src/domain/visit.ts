@@ -11,6 +11,8 @@ import {
   type VisitCategory,
 } from '@/data/visit-types';
 
+import { parseHundredths } from './number-input';
+
 /**
  * True when YYYY-MM-DD names a real calendar day. `Date.parse` alone is not enough: it
  * rolls impossible days over (2026-02-30 becomes 2 March), so we build the date and check
@@ -30,18 +32,26 @@ const isoDate = z
 const yesNo = z.enum(['yes', 'no'], { error: 'Choose Yes or No' });
 
 /**
- * Parses a non-negative number with at most two decimal places from a text field, so
- * "12.50", "12." and ".5" are fine but "12.505" is not. Empty text is "not answered",
- * never zero. A comma decimal ("12,50") is rejected for now: in English input "1,000"
- * means one thousand, so accepting commas is a study decision, not a parsing detail.
+ * Parses a non-negative number with at most two decimal places from a text field, as whole
+ * hundredths (see `parseHundredths`): "12.50", "12,5", "12." and ".5" are fine, "12.505" is
+ * not. Empty text is "not answered", never zero.
  */
-const nonNegativeNumber = (emptyMessage: string, formatMessage: string) =>
+const hundredths = (emptyMessage: string, formatMessage: string) =>
   z
     .string()
     .trim()
     .min(1, emptyMessage)
-    .refine((s) => /^(\d+(\.\d{0,2})?|\.\d{1,2})$/.test(s), formatMessage)
-    .transform(Number);
+    .transform((s, ctx) => {
+      const value = parseHundredths(s);
+      if (value === null) {
+        ctx.addIssue({ code: 'custom', message: formatMessage });
+        return z.NEVER;
+      }
+      return value;
+    });
+
+const nonNegativeNumber = (emptyMessage: string, formatMessage: string) =>
+  hundredths(emptyMessage, formatMessage).transform((value) => value / 100);
 
 export const expenseRowSchema = z.object({
   type: z.enum(EXPENSE_TYPES, { error: 'Select an expense type' }),
@@ -168,7 +178,8 @@ export function toNewVisit(values: VisitFormValues): NewVisit {
     date: v.date!,
     hospitalName: v.category === 'hospital' ? v.hospitalName : undefined,
     costCoverage: v.costCoverage!,
-    timeOffWorkHours: v.timeOffWork === 'yes' ? Number(v.timeOffWorkHours) : undefined,
+    timeOffWorkHours:
+      v.timeOffWork === 'yes' ? parseHundredths(v.timeOffWorkHours ?? '')! / 100 : undefined,
     referral:
       v.referred === 'yes'
         ? { test: v.referredFor ?? '', appointmentDate: v.appointmentDate ?? '' }
