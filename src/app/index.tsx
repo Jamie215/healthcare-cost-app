@@ -29,7 +29,7 @@ export default function Home() {
         <Text variant="title">Recent entries</Text>
         {loading ? <ActivityIndicator color={colors.blue500} /> : null}
         {error ? <Text variant="error">{error}</Text> : null}
-        {!loading && visits.length === 0 ? (
+        {!loading && !error && visits.length === 0 ? (
           <Text variant="muted">No entries yet. Choose Add a cost to record a visit.</Text>
         ) : null}
         {visits.slice(0, 5).map((v) => (
