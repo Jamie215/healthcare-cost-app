@@ -9,9 +9,12 @@ import { EmpowerError, type EmpowerClient, type Session, type SignInCredentials 
  */
 export function createHttpEmpowerClient(baseUrl: string): EmpowerClient {
   let session: Session | null = null;
+  // Join by hand: `new URL('/visits', 'https://host/api/v1')` would drop `/api/v1`, because
+  // a path starting with `/` replaces everything after the host.
+  const root = baseUrl.replace(/\/+$/, '');
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(new URL(path, baseUrl), {
+    const res = await fetch(`${root}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',

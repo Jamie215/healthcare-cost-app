@@ -54,7 +54,8 @@ they use the `EmpowerClient` interface in `src/api/empower/types.ts`.
 - With no configuration the app uses `createMockEmpowerClient()`, an in-memory stand-in that starts
   signed in as a demo participant.
 - Setting `EXPO_PUBLIC_EMPOWER_API_URL` switches to `createHttpEmpowerClient()`. Its endpoint paths
-  are **placeholders** until EmPOWER's API documentation is available.
+  are **placeholders** until EmPOWER's API documentation is available. The URL may include a
+  path, such as `https://example.org/api/v1`; endpoint paths are added after it.
 
 Open questions for EmPOWER: how sign-in works (OAuth/OpenID Connect redirect or credentials),
 whether it can send reminders or push notifications, whether it accepts photo uploads and
