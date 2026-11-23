@@ -9,7 +9,7 @@ import {
 import { TextField, type TextFieldProps } from './fields';
 
 // TextInput's own `onChange` receives a native event; this field's `onChange` receives text.
-type Props = Omit<
+export type DecimalFieldProps = Omit<
   TextFieldProps,
   'value' | 'onChange' | 'onChangeText' | 'inputMode' | 'keyboardType'
 > & {
@@ -36,7 +36,7 @@ export function DecimalField({
   warnAbove,
   largeHint,
   ...field
-}: Props) {
+}: DecimalFieldProps) {
   const parsed = parseHundredths(value);
   const hint = warnAbove != null && parsed != null && parsed > warnAbove ? largeHint : field.hint;
   return (
@@ -57,7 +57,7 @@ export function DecimalField({
 }
 
 /** Dollar amount: "$" before, "CAD" after, two decimals, and a check on large amounts. */
-export function MoneyField(props: Omit<Props, 'prefix' | 'suffix' | 'fixedDecimals'>) {
+export function MoneyField(props: Omit<DecimalFieldProps, 'prefix' | 'suffix' | 'fixedDecimals'>) {
   return (
     <DecimalField
       placeholder="0.00"

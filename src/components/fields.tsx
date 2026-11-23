@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   Platform,
   Pressable,
@@ -55,6 +55,8 @@ export type TextFieldProps = TextInputProps & {
   prefix?: string;
   /** Shown after the text, such as "CAD". */
   suffix?: string;
+  /** Reaches the text box, so a form can focus it (React 19 passes `ref` as a normal prop). */
+  ref?: Ref<ComponentRef<typeof TextInput>>;
 };
 
 export function TextField({
@@ -65,6 +67,7 @@ export function TextField({
   suffix,
   onFocus,
   onBlur,
+  ref,
   ...input
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
@@ -75,6 +78,7 @@ export function TextField({
       >
         {prefix ? <Text variant="muted">{prefix}</Text> : null}
         <TextInput
+          ref={ref}
           accessibilityLabel={label}
           placeholderTextColor={colors.muted}
           style={[styles.textInput, webNoOutline]}
