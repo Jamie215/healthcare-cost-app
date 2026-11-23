@@ -158,30 +158,47 @@ export const visitFormSchema = z
 
 export type VisitFormValues = z.input<typeof visitFormSchema>;
 
+/*
+ * Saved records. These schemas describe a visit as it is stored by EmPOWER (or the mock), and
+ * the types below are derived from them, so there is one description instead of two that can
+ * drift apart. The form schema above describes what the participant types; `toNewVisit` is
+ * the one bridge between the two.
+ *
+ * Only what the app uses is required. Unknown extra fields are dropped, not rejected, so the
+ * app keeps working if EmPOWER adds a field. Saved dates must be real calendar days, but are
+ * not checked against "today": that rule is for typing, and a server's clock may differ.
+ */
+
 /**
  * A saved expense. Money is stored as a whole number of cents (12.50 dollars is 1250), so
  * totals are exact and the unit is clear to anyone reading exported data.
  */
-export type Expense = {
-  type: (typeof EXPENSE_TYPES)[number];
-  amountCents: number;
-};
+export const expenseSchema = z.object({
+  type: z.enum(EXPENSE_TYPES),
+  amountCents: z.number().int().nonnegative(),
+});
 
-/** A saved visit, as stored by the EmPOWER API (or the mock). */
-export type Visit = {
-  id: string;
-  category: VisitCategory;
-  visitType: string;
-  date: string;
-  hospitalName?: string;
-  costCoverage: (typeof COST_COVERAGE)[number];
-  timeOffWorkHours?: number;
-  referral?: { test: string; appointmentDate: string };
-  expenses: Expense[];
-  createdAt: string;
-};
+/** A visit about to be saved: everything except what the server assigns. */
+export const newVisitSchema = z.object({
+  category: z.enum(VISIT_CATEGORY_KEYS as [VisitCategory, ...VisitCategory[]]),
+  visitType: z.string().min(1),
+  date: isoDate,
+  hospitalName: z.string().optional(),
+  costCoverage: z.enum(COST_COVERAGE),
+  timeOffWorkHours: z.number().nonnegative().optional(),
+  referral: z.object({ test: z.string(), appointmentDate: isoDate }).optional(),
+  expenses: z.array(expenseSchema),
+});
 
-export type NewVisit = Omit<Visit, 'id' | 'createdAt'>;
+/** A saved visit, with the id and creation time the server assigns. */
+export const visitSchema = newVisitSchema.extend({
+  id: z.string().min(1),
+  createdAt: z.string(),
+});
+
+export type Expense = z.infer<typeof expenseSchema>;
+export type NewVisit = z.infer<typeof newVisitSchema>;
+export type Visit = z.infer<typeof visitSchema>;
 
 /** Blank form. Questions start unanswered (no Yes/No preselected), as in the prototype. */
 export function emptyVisitForm(category: VisitCategory): Partial<VisitFormValues> {
