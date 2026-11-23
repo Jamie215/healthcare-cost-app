@@ -29,18 +29,23 @@ const isoDate = z
 
 const yesNo = z.enum(['yes', 'no'], { error: 'Choose Yes or No' });
 
-/** Parses a non-negative number from a text field. Empty text is "not answered", never zero. */
-const nonNegativeNumber = (message: string) =>
+/**
+ * Parses a non-negative number with at most two decimal places from a text field, so
+ * "12.50", "12." and ".5" are fine but "12.505" is not. Empty text is "not answered",
+ * never zero. A comma decimal ("12,50") is rejected for now: in English input "1,000"
+ * means one thousand, so accepting commas is a study decision, not a parsing detail.
+ */
+const nonNegativeNumber = (emptyMessage: string, formatMessage: string) =>
   z
     .string()
     .trim()
-    .min(1, message)
-    .refine((s) => /^\d+(\.\d+)?$/.test(s), 'Enter a number of 0 or more')
+    .min(1, emptyMessage)
+    .refine((s) => /^(\d+(\.\d{0,2})?|\.\d{1,2})$/.test(s), formatMessage)
     .transform(Number);
 
 export const expenseRowSchema = z.object({
   type: z.enum(EXPENSE_TYPES, { error: 'Select an expense type' }),
-  amount: nonNegativeNumber('Enter the cost'),
+  amount: nonNegativeNumber('Enter the cost', 'Enter an amount like 12.50'),
 });
 
 const optionalText = z.string().optional();
@@ -91,7 +96,11 @@ export const visitFormSchema = z
     if (EMPLOYMENT_QUESTION_CATEGORIES.includes(v.category)) {
       check(yesNo, v.timeOffWork, ['timeOffWork']);
       if (v.timeOffWork === 'yes') {
-        check(nonNegativeNumber('Enter the hours'), v.timeOffWorkHours ?? '', ['timeOffWorkHours']);
+        check(
+          nonNegativeNumber('Enter the hours', 'Enter hours like 2 or 1.5'),
+          v.timeOffWorkHours ?? '',
+          ['timeOffWorkHours'],
+        );
       }
     }
     if (REFERRAL_CATEGORIES.includes(v.category)) {
