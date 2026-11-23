@@ -25,3 +25,85 @@ describe('HTTP EmPOWER client', () => {
     expect(requestedUrl()).toBe('https://example.org/visits/a%2Fb');
   });
 });
+
+// Fictional record, as the server would send it.
+const record = {
+  id: 'visit-1',
+  category: 'pharmacy',
+  visitType: 'Pharmacy',
+  date: '2026-11-02',
+  costCoverage: 'Out of pocket',
+  expenses: [{ type: 'Parking', amountCents: 1250 }],
+  createdAt: '2026-11-02T15:04:05.000Z',
+};
+
+const reply = (body: unknown, status = 200) =>
+  fetchMock.mockResolvedValue({ ok: status < 400, status, json: async () => body });
+
+const client = () => createHttpEmpowerClient('https://example.org');
+
+describe('checking EmPOWER replies', () => {
+  let warn: jest.SpyInstance;
+  beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
+  it('accepts readable visits', async () => {
+    reply([record]);
+    expect(await client().listVisits()).toEqual({ visits: [record], unreadable: 0 });
+  });
+
+  it('skips an unreadable visit, counts it, and keeps the others', async () => {
+    const amountAsText = {
+      ...record,
+      id: 'visit-2',
+      expenses: [{ type: 'Parking', amountCents: '1250' }],
+    };
+    reply([record, amountAsText]);
+    expect(await client().listVisits()).toEqual({ visits: [record], unreadable: 1 });
+  });
+
+  it('tells developers which field was wrong, without the value', async () => {
+    reply([{ ...record, expenses: [{ type: 'Parking', amountCents: 'SECRET-12.50' }] }]);
+    await client().listVisits();
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('expenses.0.amountCents');
+    expect(logged).not.toContain('SECRET');
+  });
+
+  it('rejects a reply that is not a list', async () => {
+    reply({ visits: [record] });
+    await expect(client().listVisits()).rejects.toMatchObject({
+      name: 'EmpowerError',
+      message: expect.stringContaining("doesn't understand"),
+    });
+  });
+
+  it('rejects a reply that is not JSON', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('Unexpected token <');
+      },
+    });
+    await expect(client().listVisits()).rejects.toMatchObject({ name: 'EmpowerError' });
+  });
+
+  it('warns against saving twice when the reply to a save is unreadable', async () => {
+    reply({ ...record, id: undefined });
+    const { id, createdAt, ...newVisit } = record;
+    await expect(client().createVisit(newVisit as never)).rejects.toMatchObject({
+      message: expect.stringContaining('Check Recent entries before saving it again'),
+      details: ['id: Invalid input: expected string, received undefined'],
+    });
+  });
+
+  it('checks the sign-in reply', async () => {
+    reply({ participant: { id: 'p-1', displayName: 'Demo' } }); // no access token
+    await expect(client().signIn({ username: 'demo', password: 'demo' })).rejects.toMatchObject({
+      details: [expect.stringContaining('accessToken')],
+    });
+  });
+});

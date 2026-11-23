@@ -22,6 +22,17 @@ describe('Home', () => {
     expect(await screen.findByText(/No entries yet/)).toBeOnTheScreen();
   });
 
+  it('says when saved entries could not be shown', async () => {
+    const client: EmpowerClient = {
+      ...createMockEmpowerClient(),
+      listVisits: async () => ({ visits: [], unreadable: 2 }),
+    };
+    await renderHome(client);
+    expect(
+      await screen.findByText(/2 saved entries couldn't be shown in the app\. They're still saved/),
+    ).toBeOnTheScreen();
+  });
+
   it('shows only the error, not the empty state, when loading fails', async () => {
     const client: EmpowerClient = {
       ...createMockEmpowerClient(),

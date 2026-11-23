@@ -2,10 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import type { NewVisit, Visit } from '@/domain/visit';
 
-import { useEmpower } from './empower';
+import { useEmpower, type VisitList } from './empower';
 
 type VisitsState = {
   visits: Visit[];
+  /** Saved records the app could not read, left out of `visits` (see VisitList). */
+  unreadable: number;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -17,14 +19,14 @@ const VisitsContext = createContext<VisitsState | null>(null);
 /** Loads the participant's visits from EmPOWER and keeps Home in sync after saving. */
 export function VisitsProvider({ children }: { children: ReactNode }) {
   const client = useEmpower();
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const [list, setList] = useState<VisitList>({ visits: [], unreadable: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      setVisits(await client.listVisits());
+      setList(await client.listVisits());
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your visits');
@@ -49,7 +51,7 @@ export function VisitsProvider({ children }: { children: ReactNode }) {
       .listVisits()
       .then((loaded) => {
         if (!active) return;
-        setVisits(loaded);
+        setList(loaded);
         setError(null);
       })
       .catch((e: unknown) => {
@@ -64,7 +66,16 @@ export function VisitsProvider({ children }: { children: ReactNode }) {
   }, [client]);
 
   return (
-    <VisitsContext.Provider value={{ visits, loading, error, refresh, addVisit }}>
+    <VisitsContext.Provider
+      value={{
+        visits: list.visits,
+        unreadable: list.unreadable,
+        loading,
+        error,
+        refresh,
+        addVisit,
+      }}
+    >
       {children}
     </VisitsContext.Provider>
   );

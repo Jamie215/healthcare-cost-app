@@ -51,7 +51,8 @@ export function createMockEmpowerClient(options: Options = {}): EmpowerClient {
     async listVisits() {
       await wait();
       requireSession();
-      return [...visits].sort((a, b) => b.date.localeCompare(a.date));
+      // The mock only holds records it created, so none are unreadable.
+      return { visits: [...visits].sort((a, b) => b.date.localeCompare(a.date)), unreadable: 0 };
     },
     async createVisit(visit: NewVisit) {
       await wait();

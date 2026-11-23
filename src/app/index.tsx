@@ -9,7 +9,7 @@ import { formatCents, summarizeCosts, visitTotalCents } from '@/domain/costs';
 import { colors, fontSize, radius, space } from '@/theme/tokens';
 
 export default function Home() {
-  const { visits, loading, error } = useVisits();
+  const { visits, unreadable, loading, error } = useVisits();
   const summary = summarizeCosts(visits);
 
   return (
@@ -29,6 +29,14 @@ export default function Home() {
         <Text variant="title">Recent entries</Text>
         {loading ? <ActivityIndicator color={colors.blue500} /> : null}
         {error ? <Text variant="error">{error}</Text> : null}
+        {unreadable > 0 ? (
+          <Text variant="muted">
+            {unreadable === 1
+              ? "1 saved entry couldn't be shown in the app. It's still saved."
+              : `${unreadable} saved entries couldn't be shown in the app. They're still saved.`}{' '}
+            Please let the study team know.
+          </Text>
+        ) : null}
         {!loading && !error && visits.length === 0 ? (
           <Text variant="muted">No entries yet. Choose Add a cost to record a visit.</Text>
         ) : null}

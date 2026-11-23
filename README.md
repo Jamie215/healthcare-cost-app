@@ -58,6 +58,10 @@ they use the `EmpowerClient` interface in `src/api/empower/types.ts`.
   path, such as `https://example.org/api/v1`; endpoint paths are added after it.
 - Money is saved as a whole number of cents (`amountCents: 1250` is $12.50), so totals are
   exact. If EmPOWER expects dollars, convert in the HTTP client, not in screens.
+- Every reply from EmPOWER is checked against the schemas in `src/domain/visit.ts` before the
+  app uses it. A saved visit the app can't read is left out, and Home says how many couldn't
+  be shown; the record stays on the server. If EmPOWER's format differs from ours, convert it
+  in the HTTP client before checking.
 
 Open questions for EmPOWER: how sign-in works (OAuth/OpenID Connect redirect or credentials),
 whether it can send reminders or push notifications, whether it accepts photo uploads and

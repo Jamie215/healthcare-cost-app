@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import type { NewVisit, Visit } from '@/domain/visit';
 
 /**
@@ -14,22 +16,35 @@ export interface EmpowerClient {
   signIn(credentials: SignInCredentials): Promise<Session>;
   signOut(): Promise<void>;
 
-  listVisits(): Promise<Visit[]>;
+  listVisits(): Promise<VisitList>;
   createVisit(visit: NewVisit): Promise<Visit>;
   deleteVisit(id: string): Promise<void>;
 }
 
-export type Participant = {
-  id: string;
-  displayName: string;
+/**
+ * The participant's visits. A record the app cannot read (it does not match the saved visit
+ * schema) is left out of `visits` and counted in `unreadable`, so Home can say so instead
+ * of hiding it silently or refusing to show anything. The record stays on the server.
+ */
+export type VisitList = {
+  visits: Visit[];
+  unreadable: number;
 };
 
-export type Session = {
-  participant: Participant;
+export const participantSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string(),
+});
+
+export const sessionSchema = z.object({
+  participant: participantSchema,
   /** Opaque token from EmPOWER. Never log it or store it outside secure storage. */
-  accessToken: string;
-  expiresAt?: string;
-};
+  accessToken: z.string().min(1),
+  expiresAt: z.string().optional(),
+});
+
+export type Participant = z.infer<typeof participantSchema>;
+export type Session = z.infer<typeof sessionSchema>;
 
 /**
  * Placeholder. If EmPOWER uses an OAuth/OpenID Connect redirect, this becomes a
@@ -41,9 +56,15 @@ export type SignInCredentials = {
 };
 
 export class EmpowerError extends Error {
+  /**
+   * @param message Plain-language message, safe to show on screen.
+   * @param details For developers: which fields were wrong and how. Never contains the
+   *   values themselves, which are participant data.
+   */
   constructor(
     message: string,
     readonly status?: number,
+    readonly details: readonly string[] = [],
   ) {
     super(message);
     this.name = 'EmpowerError';
