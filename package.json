@@ -58,6 +58,9 @@
     "setupFilesAfterEnv": [
       "@testing-library/react-native/matchers"
     ],
+    "moduleNameMapper": {
+      "^@/assets/(.*)$": "<rootDir>/assets/$1"
+    },
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/prototype/"
