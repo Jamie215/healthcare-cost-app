@@ -9,7 +9,7 @@ export default function VisitDetailsRoute() {
   const { category } = useLocalSearchParams<{ category: string }>();
   if (!isVisitCategory(category)) {
     return (
-      <Screen>
+      <Screen back>
         <Text variant="error">Unknown visit category.</Text>
       </Screen>
     );

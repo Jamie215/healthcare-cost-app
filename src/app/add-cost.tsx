@@ -6,7 +6,7 @@ import { Text } from '@/components/text';
 
 export default function AddCost() {
   return (
-    <Screen>
+    <Screen back>
       <Text variant="title">What would you like to record?</Text>
       <Button label="Healthcare visit" onPress={() => router.push('/visit')} />
       {/* TODO: port the medication and refill flow from prototype/ (#new-medication). */}
