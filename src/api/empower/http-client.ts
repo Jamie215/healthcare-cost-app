@@ -13,6 +13,8 @@ import {
 
 const UNREADABLE_REPLY =
   "EmPOWER sent a reply this app doesn't understand. Please try again later.";
+const TOO_SLOW = 'EmPOWER took too long to respond. Check your internet connection and try again.';
+const UNREACHABLE = "Couldn't reach EmPOWER. Check your internet connection and try again.";
 
 /**
  * Describes what was wrong for developers: the field and the problem, never the value,
@@ -38,28 +40,52 @@ function check<S extends z.ZodType>(schema: S, data: unknown, message = UNREADAB
  * before the app uses it. If EmPOWER's format turns out to differ (other field names,
  * null instead of a missing field), convert it here, in one place, before checking.
  */
-export function createHttpEmpowerClient(baseUrl: string): EmpowerClient {
+export function createHttpEmpowerClient(
+  baseUrl: string,
+  {
+    /** Give up on a request (including reading its reply) after this long. */
+    timeoutMs = 15_000,
+  }: { timeoutMs?: number } = {},
+): EmpowerClient {
   let session: Session | null = null;
   // Join by hand: `new URL('/visits', 'https://host/api/v1')` would drop `/api/v1`, because
   // a path starting with `/` replaces everything after the host.
   const root = baseUrl.replace(/\/+$/, '');
 
-  /** Sends a request and returns the reply body, unchecked (`unknown`) until a schema says so. */
+  /**
+   * Sends a request and returns the reply body, unchecked (`unknown`) until a schema says so.
+   * Gives up after `timeoutMs`, so a weak connection shows a message instead of an endless
+   * spinner. AbortController is the standard way to cancel a fetch.
+   */
   async function send(path: string, init: RequestInit = {}): Promise<unknown> {
-    const res = await fetch(`${root}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-        ...init.headers,
-      },
-    });
-    if (!res.ok) throw new EmpowerError(`EmPOWER request failed: ${res.status}`, res.status);
-    if (res.status === 204) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await res.json();
-    } catch {
-      throw new EmpowerError(UNREADABLE_REPLY, res.status, ['reply is not valid JSON']);
+      const res = await fetch(`${root}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+          ...init.headers,
+        },
+      });
+      if (!res.ok) throw new EmpowerError(`EmPOWER request failed: ${res.status}`, res.status);
+      if (res.status === 204) return undefined;
+      try {
+        return await res.json();
+      } catch (e) {
+        if (controller.signal.aborted) throw e; // timed out while reading: handled below
+        throw new EmpowerError(UNREADABLE_REPLY, res.status, ['reply is not valid JSON']);
+      }
+    } catch (e) {
+      if (e instanceof EmpowerError) throw e;
+      // Anything else from fetch is the connection: cancelled by our timer, or no network.
+      throw new EmpowerError(controller.signal.aborted ? TOO_SLOW : UNREACHABLE, undefined, [
+        String(e),
+      ]);
+    } finally {
+      clearTimeout(timer);
     }
   }
 

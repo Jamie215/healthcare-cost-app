@@ -107,3 +107,59 @@ describe('checking EmPOWER replies', () => {
     });
   });
 });
+
+describe('slow or missing connection', () => {
+  afterEach(() => jest.useRealTimers());
+
+  // A server that never answers: the request only ends when it is cancelled.
+  const neverAnswers = () =>
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) =>
+          init.signal!.addEventListener('abort', () =>
+            reject(Object.assign(new Error('Aborted'), { name: 'AbortError' })),
+          ),
+        ),
+    );
+
+  it('gives up after the timeout with a plain message', async () => {
+    jest.useFakeTimers();
+    neverAnswers();
+    const result = expect(
+      createHttpEmpowerClient('https://example.org', { timeoutMs: 5_000 }).listVisits(),
+    ).rejects.toMatchObject({
+      name: 'EmpowerError',
+      message: expect.stringContaining('took too long'),
+    });
+    await jest.advanceTimersByTimeAsync(5_000);
+    await result;
+  });
+
+  it('does not give up early', async () => {
+    jest.useFakeTimers();
+    neverAnswers();
+    let settled = false;
+    createHttpEmpowerClient('https://example.org', { timeoutMs: 5_000 })
+      .listVisits()
+      .catch(() => {})
+      .finally(() => (settled = true));
+    await jest.advanceTimersByTimeAsync(4_999);
+    expect(settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    expect(settled).toBe(true);
+  });
+
+  it('explains a missing connection in plain words', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Network request failed'));
+    await expect(client().listVisits()).rejects.toMatchObject({
+      message: expect.stringContaining("Couldn't reach EmPOWER"),
+    });
+  });
+
+  it('stops the timer once a reply arrives', async () => {
+    jest.useFakeTimers();
+    reply([]);
+    await client().listVisits();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+});
