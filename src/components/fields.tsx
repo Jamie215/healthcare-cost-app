@@ -1,17 +1,33 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { useState, type ComponentRef, type ReactNode, type Ref } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputProps,
+  type TextStyle,
+} from 'react-native';
 
 import { colors, radius, space } from '@/theme/tokens';
 
 import { Text } from './text';
 
+// The wrapper shows focus, so drop the browser's own focus outline on web. CSS needs
+// outline-style: none here (outlineWidth: 0 alone leaves it), but React Native's types only
+// list the native values (solid, dotted, dashed), hence the cast.
+const webNoOutline = Platform.select({ web: { outlineStyle: 'none' } as unknown as TextStyle });
+
 export function Question({
   label,
   error,
+  hint,
   children,
 }: {
   label: string;
   error?: string;
+  /** A gentle note that does not block saving, such as "please check this amount". */
+  hint?: string;
   children: ReactNode;
 }) {
   return (
@@ -22,29 +38,50 @@ export function Question({
         <Text variant="error" accessibilityRole="alert">
           {error}
         </Text>
+      ) : hint ? (
+        <Text variant="muted" accessibilityLiveRegion="polite">
+          {hint}
+        </Text>
       ) : null}
     </View>
   );
 }
 
+export type TextFieldProps = TextInputProps & {
+  label: string;
+  error?: string;
+  hint?: string;
+  /** Shown before the text, such as "$". */
+  prefix?: string;
+  /** Shown after the text, such as "CAD". */
+  suffix?: string;
+  /** Reaches the text box, so a form can focus it (React 19 passes `ref` as a normal prop). */
+  ref?: Ref<ComponentRef<typeof TextInput>>;
+};
+
 export function TextField({
   label,
   error,
+  hint,
+  prefix,
   suffix,
   onFocus,
   onBlur,
+  ref,
   ...input
-}: TextInputProps & { label: string; error?: string; suffix?: string }) {
+}: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   return (
-    <Question label={label} error={error}>
+    <Question label={label} error={error} hint={hint}>
       <View
         style={[styles.input, focused && styles.inputFocused, error ? styles.inputError : null]}
       >
+        {prefix ? <Text variant="muted">{prefix}</Text> : null}
         <TextInput
+          ref={ref}
           accessibilityLabel={label}
           placeholderTextColor={colors.muted}
-          style={styles.textInput}
+          style={[styles.textInput, webNoOutline]}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -121,6 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     backgroundColor: colors.surface,
     paddingHorizontal: space[16],
+    gap: space[4],
   },
   // Active border from the prototype's Input component (#005586).
   inputFocused: { borderColor: colors.blue500 },
@@ -131,8 +169,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-400',
     fontSize: 14,
     color: colors.text,
-    // The wrapper shows focus; drop the browser's default outline on web.
-    outlineWidth: 0,
   },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space[8] },
   chip: {

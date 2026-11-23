@@ -5,11 +5,11 @@ import { useVisits } from '@/api/visits';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { Text } from '@/components/text';
-import { formatCurrency, summarizeCosts } from '@/domain/costs';
+import { formatCents, summarizeCosts, visitTotalCents } from '@/domain/costs';
 import { colors, fontSize, radius, space } from '@/theme/tokens';
 
 export default function Home() {
-  const { visits, loading, error } = useVisits();
+  const { visits, unreadable, loading, error } = useVisits();
   const summary = summarizeCosts(visits);
 
   return (
@@ -18,7 +18,7 @@ export default function Home() {
 
       <View style={styles.card} accessibilityLabel="Cost summary">
         <Text variant="muted">Related expenses recorded</Text>
-        <Text style={styles.amount}>{formatCurrency(summary.totalExpenses)}</Text>
+        <Text style={styles.amount}>{formatCents(summary.totalExpenseCents)}</Text>
         <Text variant="muted">
           {summary.visitCount} {summary.visitCount === 1 ? 'visit' : 'visits'}
           {summary.hoursOffWork > 0 ? ` · ${summary.hoursOffWork} hours off paid work` : ''}
@@ -29,14 +29,22 @@ export default function Home() {
         <Text variant="title">Recent entries</Text>
         {loading ? <ActivityIndicator color={colors.blue500} /> : null}
         {error ? <Text variant="error">{error}</Text> : null}
-        {!loading && visits.length === 0 ? (
+        {unreadable > 0 ? (
+          <Text variant="muted">
+            {unreadable === 1
+              ? "1 saved entry couldn't be shown in the app. It's still saved."
+              : `${unreadable} saved entries couldn't be shown in the app. They're still saved.`}{' '}
+            Please let the study team know.
+          </Text>
+        ) : null}
+        {!loading && !error && visits.length === 0 ? (
           <Text variant="muted">No entries yet. Choose Add a cost to record a visit.</Text>
         ) : null}
         {visits.slice(0, 5).map((v) => (
           <View key={v.id} style={styles.entry}>
             <Text variant="label">{v.hospitalName ?? v.visitType}</Text>
             <Text variant="muted">
-              {v.date} · {formatCurrency(v.expenses.reduce((s, e) => s + e.amount, 0))}
+              {v.date} · {formatCents(visitTotalCents(v))}
             </Text>
           </View>
         ))}

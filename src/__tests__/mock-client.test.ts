@@ -20,15 +20,18 @@ describe('mock EmPOWER client', () => {
     await client.createVisit({ ...visit, date: '2026-10-01' });
     const saved = await client.createVisit(visit);
     expect(saved.id).toBeTruthy();
-    expect((await client.listVisits()).map((v) => v.date)).toEqual(['2026-11-03', '2026-10-01']);
+    expect((await client.listVisits()).visits.map((v) => v.date)).toEqual([
+      '2026-11-03',
+      '2026-10-01',
+    ]);
     await client.deleteVisit(saved.id);
-    expect(await client.listVisits()).toHaveLength(1);
+    expect((await client.listVisits()).visits).toHaveLength(1);
   });
 
   it('rejects data calls when signed out', async () => {
     const client = createMockEmpowerClient({ signedIn: false });
     await expect(client.listVisits()).rejects.toBeInstanceOf(EmpowerError);
     await client.signIn({ username: 'demo', password: 'demo' });
-    await expect(client.listVisits()).resolves.toEqual([]);
+    await expect(client.listVisits()).resolves.toEqual({ visits: [], unreadable: 0 });
   });
 });

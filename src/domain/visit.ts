@@ -11,25 +11,62 @@ import {
   type VisitCategory,
 } from '@/data/visit-types';
 
+import { parseHundredths } from './number-input';
+
+/**
+ * True when YYYY-MM-DD names a real calendar day. `Date.parse` alone is not enough: it
+ * rolls impossible days over (2026-02-30 becomes 2 March), so we build the date and check
+ * the year, month and day come back unchanged.
+ */
+const isRealDate = (s: string) => {
+  const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+};
+
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter a date as YYYY-MM-DD')
-  .refine((s) => !Number.isNaN(Date.parse(s)), 'Enter a valid date');
+  .refine(isRealDate, 'Enter a valid date');
+
+/**
+ * Today's date as YYYY-MM-DD in the phone's own time zone. Not `toISOString()`, which uses
+ * UTC: in Toronto, UTC is already tomorrow after 7 pm, so a UTC "today" would let
+ * tomorrow's date through every evening.
+ */
+export function localToday(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// YYYY-MM-DD strings sort in date order, so dates can be compared as plain text.
+const visitDate = isoDate.refine((s) => s <= localToday(), "The visit date can't be in the future");
 
 const yesNo = z.enum(['yes', 'no'], { error: 'Choose Yes or No' });
 
-/** Parses a non-negative number from a text field. Empty text is "not answered", never zero. */
-const nonNegativeNumber = (message: string) =>
+/**
+ * Parses a non-negative number with at most two decimal places from a text field, as whole
+ * hundredths (see `parseHundredths`): "12.50", "12,5", "12." and ".5" are fine, "12.505" is
+ * not. Empty text is "not answered", never zero.
+ */
+const hundredths = (emptyMessage: string, formatMessage: string) =>
   z
     .string()
     .trim()
-    .min(1, message)
-    .refine((s) => /^\d+(\.\d+)?$/.test(s), 'Enter a number of 0 or more')
-    .transform(Number);
+    .min(1, emptyMessage)
+    .transform((s, ctx) => {
+      const value = parseHundredths(s);
+      if (value === null) {
+        ctx.addIssue({ code: 'custom', message: formatMessage });
+        return z.NEVER;
+      }
+      return value;
+    });
 
+/** One expense row as typed. `amount` parses to whole cents: "12.50" → 1250. */
 export const expenseRowSchema = z.object({
   type: z.enum(EXPENSE_TYPES, { error: 'Select an expense type' }),
-  amount: nonNegativeNumber('Enter the cost'),
+  amount: hundredths('Enter the cost', 'Enter an amount like 12.50'),
 });
 
 const optionalText = z.string().optional();
@@ -59,9 +96,11 @@ export const visitFormSchema = z
   })
   .superRefine((v, ctx) => {
     /** Reports only the first problem for a field, so each question shows one message. */
+    /** Returns whether the value passed, so later checks can build on it. */
     const check = (schema: z.ZodType, value: unknown, path: (string | number)[]) => {
       const r = schema.safeParse(value);
       if (!r.success) ctx.addIssue({ code: 'custom', path, message: r.error.issues[0]!.message });
+      return r.success;
     };
     const oneOf = (options: readonly string[], message: string) =>
       z.string({ error: message }).refine((s) => options.includes(s), message);
@@ -69,7 +108,7 @@ export const visitFormSchema = z
     check(oneOf(VISIT_CATEGORIES[v.category].types, 'Select the type of visit'), v.visitType, [
       'visitType',
     ]);
-    check(isoDate, v.date ?? '', ['date']);
+    const dateOk = check(visitDate, v.date ?? '', ['date']);
     if (v.category === 'hospital') {
       check(z.string().trim().min(1, 'Enter the name of the hospital'), v.hospitalName ?? '', [
         'hospitalName',
@@ -80,7 +119,11 @@ export const visitFormSchema = z
     if (EMPLOYMENT_QUESTION_CATEGORIES.includes(v.category)) {
       check(yesNo, v.timeOffWork, ['timeOffWork']);
       if (v.timeOffWork === 'yes') {
-        check(nonNegativeNumber('Enter the hours'), v.timeOffWorkHours ?? '', ['timeOffWorkHours']);
+        check(
+          hundredths('Enter the hours', 'Enter hours like 2 or 1.5'),
+          v.timeOffWorkHours ?? '',
+          ['timeOffWorkHours'],
+        );
       }
     }
     if (REFERRAL_CATEGORIES.includes(v.category)) {
@@ -89,7 +132,16 @@ export const visitFormSchema = z
         check(oneOf(TESTS_AND_PROCEDURES, 'Select the test or procedure'), v.referredFor, [
           'referredFor',
         ]);
-        check(isoDate, v.appointmentDate ?? '', ['appointmentDate']);
+        // The appointment may be past or future (visits are often recorded later), but not
+        // before the visit that led to the referral.
+        const appointmentOk = check(isoDate, v.appointmentDate ?? '', ['appointmentDate']);
+        if (dateOk && appointmentOk && v.appointmentDate! < v.date!) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['appointmentDate'],
+            message: "The appointment can't be before the visit",
+          });
+        }
       }
     }
     check(yesNo, v.hadExpenses, ['hadExpenses']);
@@ -106,23 +158,47 @@ export const visitFormSchema = z
 
 export type VisitFormValues = z.input<typeof visitFormSchema>;
 
-export type Expense = z.output<typeof expenseRowSchema>;
+/*
+ * Saved records. These schemas describe a visit as it is stored by EmPOWER (or the mock), and
+ * the types below are derived from them, so there is one description instead of two that can
+ * drift apart. The form schema above describes what the participant types; `toNewVisit` is
+ * the one bridge between the two.
+ *
+ * Only what the app uses is required. Unknown extra fields are dropped, not rejected, so the
+ * app keeps working if EmPOWER adds a field. Saved dates must be real calendar days, but are
+ * not checked against "today": that rule is for typing, and a server's clock may differ.
+ */
 
-/** A saved visit, as stored by the EmPOWER API (or the mock). */
-export type Visit = {
-  id: string;
-  category: VisitCategory;
-  visitType: string;
-  date: string;
-  hospitalName?: string;
-  costCoverage: (typeof COST_COVERAGE)[number];
-  timeOffWorkHours?: number;
-  referral?: { test: string; appointmentDate: string };
-  expenses: Expense[];
-  createdAt: string;
-};
+/**
+ * A saved expense. Money is stored as a whole number of cents (12.50 dollars is 1250), so
+ * totals are exact and the unit is clear to anyone reading exported data.
+ */
+export const expenseSchema = z.object({
+  type: z.enum(EXPENSE_TYPES),
+  amountCents: z.number().int().nonnegative(),
+});
 
-export type NewVisit = Omit<Visit, 'id' | 'createdAt'>;
+/** A visit about to be saved: everything except what the server assigns. */
+export const newVisitSchema = z.object({
+  category: z.enum(VISIT_CATEGORY_KEYS as [VisitCategory, ...VisitCategory[]]),
+  visitType: z.string().min(1),
+  date: isoDate,
+  hospitalName: z.string().optional(),
+  costCoverage: z.enum(COST_COVERAGE),
+  timeOffWorkHours: z.number().nonnegative().optional(),
+  referral: z.object({ test: z.string(), appointmentDate: isoDate }).optional(),
+  expenses: z.array(expenseSchema),
+});
+
+/** A saved visit, with the id and creation time the server assigns. */
+export const visitSchema = newVisitSchema.extend({
+  id: z.string().min(1),
+  createdAt: z.string(),
+});
+
+export type Expense = z.infer<typeof expenseSchema>;
+export type NewVisit = z.infer<typeof newVisitSchema>;
+export type Visit = z.infer<typeof visitSchema>;
 
 /** Blank form. Questions start unanswered (no Yes/No preselected), as in the prototype. */
 export function emptyVisitForm(category: VisitCategory): Partial<VisitFormValues> {
@@ -148,11 +224,18 @@ export function toNewVisit(values: VisitFormValues): NewVisit {
     date: v.date!,
     hospitalName: v.category === 'hospital' ? v.hospitalName : undefined,
     costCoverage: v.costCoverage!,
-    timeOffWorkHours: v.timeOffWork === 'yes' ? Number(v.timeOffWorkHours) : undefined,
+    timeOffWorkHours:
+      v.timeOffWork === 'yes' ? parseHundredths(v.timeOffWorkHours ?? '')! / 100 : undefined,
     referral:
       v.referred === 'yes'
         ? { test: v.referredFor ?? '', appointmentDate: v.appointmentDate ?? '' }
         : undefined,
-    expenses: v.hadExpenses === 'yes' ? v.expenses.map((e) => expenseRowSchema.parse(e)) : [],
+    expenses:
+      v.hadExpenses === 'yes'
+        ? v.expenses.map((e) => {
+            const row = expenseRowSchema.parse(e);
+            return { type: row.type, amountCents: row.amount };
+          })
+        : [],
   };
 }

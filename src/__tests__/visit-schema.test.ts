@@ -66,6 +66,42 @@ describe('visit form rules', () => {
     expect(errorPaths(zero)).toEqual([]);
   });
 
+  it('rejects dates that are not on the calendar', () => {
+    for (const date of ['2026-02-30', '2026-02-31', '2026-04-31', '2026-13-01', '2026-00-10']) {
+      expect(errorPaths(base({ date }))).toContain('date');
+    }
+    expect(errorPaths(base({ date: '2024-02-29' }))).toEqual([]); // leap year
+    expect(errorPaths(base({ date: '2025-02-29' }))).toContain('date');
+  });
+
+  it('accepts amounts with up to two decimal places', () => {
+    const withAmount = (amount: string) =>
+      errorPaths(base({ hadExpenses: 'yes', expenses: [{ type: 'Parking', amount }] }));
+    for (const amount of ['12', '12.5', '12.50', '12.', '.5', ' 3 ', '12,50', ',5']) {
+      expect(withAmount(amount)).toEqual([]);
+    }
+    for (const amount of ['12.505', '1,000', '$12', '-1', '.', 'abc', '1.2.3']) {
+      expect(withAmount(amount)).toContain('expenses.0.amount');
+    }
+    expect(errorPaths(base({ timeOffWork: 'yes', timeOffWorkHours: '1.5' }))).toEqual([]);
+    expect(errorPaths(base({ timeOffWork: 'yes', timeOffWorkHours: '1.255' }))).toContain(
+      'timeOffWorkHours',
+    );
+  });
+
+  it('saves comma decimals as numbers', () => {
+    const saved = toNewVisit(
+      base({
+        timeOffWork: 'yes',
+        timeOffWorkHours: '1,5',
+        hadExpenses: 'yes',
+        expenses: [{ type: 'Parking', amount: '12,5' }],
+      }),
+    );
+    expect(saved.timeOffWorkHours).toBe(1.5);
+    expect(saved.expenses).toEqual([{ type: 'Parking', amountCents: 1250 }]);
+  });
+
   it('drops hidden follow-ups when saving', () => {
     const saved = toNewVisit(
       base({
@@ -79,7 +115,7 @@ describe('visit form rules', () => {
     expect(saved.expenses).toEqual([]);
   });
 
-  it('converts expense amounts to numbers', () => {
+  it('saves expense amounts as whole cents', () => {
     const saved = toNewVisit(
       base({
         hadExpenses: 'yes',
@@ -90,8 +126,8 @@ describe('visit form rules', () => {
       }),
     );
     expect(saved.expenses).toEqual([
-      { type: 'Parking', amount: 12.5 },
-      { type: 'Meal', amount: 4 },
+      { type: 'Parking', amountCents: 1250 },
+      { type: 'Meal', amountCents: 400 },
     ]);
   });
 });

@@ -24,7 +24,7 @@ describe('VisitForm', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
     expect(await screen.findByText('Enter a date as YYYY-MM-DD')).toBeTruthy();
     expect(onSaved).not.toHaveBeenCalled();
-    expect(await client.listVisits()).toEqual([]);
+    expect((await client.listVisits()).visits).toEqual([]);
   });
 
   it('reveals expense rows only after Yes, and saves the visit', async () => {
@@ -37,15 +37,16 @@ describe('VisitForm', () => {
     await fireEvent.press(screen.getByText('Yes'));
     await fireEvent.press(screen.getByText('Add expense'));
     await fireEvent.press(screen.getByText('Parking'));
-    await fireEvent.changeText(screen.getByLabelText('Expense 1 cost'), '12.50');
+    // A French-language keypad types a comma; it must still save as $12.50.
+    await fireEvent.changeText(screen.getByLabelText('Expense 1 cost'), '12,5');
     await fireEvent.press(screen.getByRole('button', { name: 'Save visit' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    const [saved] = await client.listVisits();
+    const [saved] = (await client.listVisits()).visits;
     expect(saved).toMatchObject({
       category: 'pharmacy',
       costCoverage: 'Out of pocket',
-      expenses: [{ type: 'Parking', amount: 12.5 }],
+      expenses: [{ type: 'Parking', amountCents: 1250 }],
     });
   });
 });

@@ -10,18 +10,21 @@ import { colors } from '@/theme/tokens';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Inter-400': require('@/assets/fonts/Inter-400.ttf'),
     'Inter-500': require('@/assets/fonts/Inter-500.ttf'),
     'Inter-600': require('@/assets/fonts/Inter-600.ttf'),
     'Inter-700': require('@/assets/fonts/Inter-700.ttf'),
   });
+  // If the fonts fail to load, carry on with the system font rather than staying on the
+  // splash screen forever.
+  const ready = fontsLoaded || fontError != null;
 
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (!fontsLoaded) return null;
+  if (!ready) return null;
 
   return (
     <EmpowerProvider client={() => createEmpowerClient()}>
